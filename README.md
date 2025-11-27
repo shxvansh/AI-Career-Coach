@@ -1,1 +1,77 @@
-# AI-Career-Coach
+## Project 1: The "Agentic Resume" (Autonomous Resume Tuner & Job Search Agent)
+
+
+1. Project Overview
+
+This project is a hybrid AI system that acts as an autonomous career agent. It addresses a core problem for job seekers: the need to manually tune a resume for every single job application.
+This agent ingests a user's single "master" resume (as LaTeX) and a URL to a job description. It then performs a "gap analysis" using a specialized, finetuned model (the "Resume Expert") to identify missing keywords and skills. Finally, it automatically rewrites the resume, compiles a new, perfectly tuned PDF, and finds other similar jobs that are a strong match for the newly generated resume.
+This system combines:
+* Finetuning (LoRA): To create a specialist "brain" for resume analysis.
+* RAG: To read and understand the contents of the user's base resume.
+* Agentic Tools: To read web pages, write files, compile code (LaTeX), and search the web.
+
+2. Features
+
+* Finetuned Gap Analysis: Uses a custom LoRA-finetuned model to provide expert-level analysis of how a resume matches a job description.
+* Automated Resume Generation: Reads a .tex template, injects newly generated, tuned bullet points, and compiles a new, ready-to-send PDF.
+* Smart Job Search: Uses the newly tuned resume's qualifications to generate highly relevant search queries for other job postings.
+* End-to-End Automation: A "one-click" agent that turns a job URL into a custom resume and a list of new leads.
+
+3. System Architecture
+
+This project is built in two phases: Finetuning (Phase 0) and The Agent (Phase 1).
+
+Phase 0: Finetuning the "Resume Expert" (LoRA)
+
+1. Base Model: A high-performing open-source model (e.g., CodeLlama-7B or Mistral-7B).
+2. Dataset: A custom, hand-made JSONL file with ~300 examples. Each example contains:
+    * "resume_context": Text snippets from a resume.
+    * "job_description_context": Text snippets from a job post.
+    * "output_analysis": The "expert" analysis and new bullet points we want the model to learn to generate.
+3. Training: The model is finetuned using LoRA (via the Hugging Face peft library) to create a small, efficient "adapter" that teaches it the new skill of resume gap analysis.
+4. Result: A "Resume Expert" model that is specialized in generating context-aware, ATS-friendly resume content.
+
+Phase 1: The Agentic Workflow (LangChain)
+
+This agent uses the "Resume Expert" model as its brain and is given a set of custom tools.
+1. Input: The user provides a URL to a job description.
+2. Tool 1: job_scraper_tool: The agent's first step. It takes the URL and scrapes the full text of the job description.
+3. Tool 2: resume_retriever_tool (RAG): The agent's second step. It queries its RAG pipeline (built from your original LaTeX resume) to get all your skills, experiences, and projects (e.g., ).
+4. LLM Call (The "Brain"): The agent now has the job_description_text and the resume_context. It feeds both to its LoRA-fused "Resume Expert" brain. The brain performs the gap analysis and generates new, targeted bullet points in LaTeX format.
+5. Tool 3: latex_compiler_tool: The agent takes the newly generated LaTeX text. This tool:a. Reads a template.tex file.b. Injects the new bullet points at a placeholder (e.g., %--AGENT_BULLETS_HERE--%).c. Runs a pdflatex command on the server to compile a new PDF.d. Returns the path to the tuned_resume.pdf.
+6. Tool 4: job_search_tool: The agent's final step. It uses the new bullet points to generate smart search queries (e.g., "AI Engineer jobs with RAG and FastAPI"). It retrieves 5-10 similar job URLs.
+7. Output: The agent provides the user with a download link for the new PDF and a list of new, highly relevant job links.
+
+4. Tech Stack
+
+* Orchestration: LangChain (Agents, LCEL)
+* Model Finetuning: Hugging Face transformers, peft (LoRA), datasets
+* LLM (Brain): Mistral-7B (or similar) + your custom LoRA adapter
+* RAG Pipeline:
+    * Loader: PyMuPDFLoader (to build the DB) or a simple text loader (for the .tex file).
+    * Embeddings: HuggingFaceEmbeddings (e.g., all-MiniLM-L6-v2)
+    * Vector Store: ChromaDB (for persistent storage)
+* Tools: Tavily (for search), BeautifulSoup4 (for scraping), subprocess (for LaTeX).
+* Serving (Optional): FastAPI (for the agent API) & Streamlit (for the frontend).
+
+5. Project Structure
+
+/agentic-resume
+|
+├── /app
+│   ├── main.py             # FastAPI app / Streamlit app
+│   ├── agent.py            # Agent definition, tools, and logic
+│   └── tools.py            # Python code for `latex_compiler_tool`, etc.
+|
+├── /finetuning
+│   ├── train_lora.ipynb    # Jupyter notebook for training the LoRA model
+│   └── dataset.jsonl       # Your custom finetuning dataset
+|
+├── /resume_data
+│   ├── my_resume.tex       # Your "master" resume template
+│   └── /db                 # Persistent Chroma vector store
+|
+├── /output
+│   └── tuned_resume.pdf    # The final PDF generated by the agent
+|
+└── README.md               # This documentation
