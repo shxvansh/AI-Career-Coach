@@ -1,10 +1,10 @@
 # Core AI & Orchestration
 langchain==0.3.0
-langchain-openai==0.1.0
+langchain-openai==0.2.0
 langchain-community==0.3.0
-langchain-core==0.3.0
 langchain-huggingface
 langchain-chroma
+langchain-text-splitters
 
 # Vector Database
 chromadb==0.4.22
@@ -14,7 +14,6 @@ torch
 transformers
 peft
 datasets
-bitsandbytes
 trl
 accelerate
 sentence-transformers
@@ -24,6 +23,7 @@ beautifulsoup4
 python-dotenv
 tavily-python
 jupyter
+pypdf
 
 # Web & API
 fastapi
