@@ -1,0 +1,141 @@
+============================================================
+RAG SYSTEM TEST REPORT
+============================================================
+Timestamp: 2025-12-12 15:38:36
+
+SUMMARY:
+.1f
+.2f
+
+DETAILED RESULTS:
+
+✅ PASS RESUME_INGESTION
+.2f
+   Chunks created: 11
+
+✅ PASS QUERY_FRONTEND_DEV
+.2f
+   Chunks returned: 6
+
+✅ PASS QUERY_DATA_SCIENTIST
+.2f
+   Chunks returned: 6
+
+✅ PASS QUERY_AI_ML_ENGINEER
+.2f
+   Chunks returned: 6
+
+VALIDATION CHECKS:
+   ✅ PASS ingestion_success: Ingestion completed in 33.81s
+   ✅ PASS frontend_dev_relevance_scores: .3fAvg: 0.287, Range: [0.277, 0.309]
+   ✅ PASS frontend_dev_chunk_count: frontend_dev: 6 chunks returned
+   ✅ PASS data_scientist_relevance_scores: .3fAvg: 0.300, Range: [0.274, 0.337]
+   ✅ PASS data_scientist_chunk_count: data_scientist: 6 chunks returned
+   ✅ PASS ai_ml_engineer_relevance_scores: .3fAvg: 0.334, Range: [0.278, 0.422]
+   ✅ PASS ai_ml_engineer_chunk_count: ai_ml_engineer: 6 chunks returned
+
+✅ ALL TESTS PASSED
+
+RAW RESULTS:
+{
+  "timestamp": 1765534116.686744,
+  "tests": [
+    {
+      "test_name": "resume_ingestion",
+      "success": true,
+      "total_time": 33.80554795265198,
+      "error": null,
+      "stats": {
+        "start_time": 1765534116.7012951,
+        "success": true,
+        "chunks_created": 11,
+        "embedding_time": 28.169809341430664,
+        "total_time": 33.80522584915161,
+        "load_time": 0.01627373695373535,
+        "chunk_time": 0.0011298656463623047,
+        "store_time": 0.9993021488189697
+      }
+    },
+    {
+      "test_name": "query_frontend_dev",
+      "success": true,
+      "total_time": 4.98432993888855,
+      "error": null,
+      "stats": {
+        "start_time": 1765534150.520824,
+        "job_extraction_time": 0.028655052185058594,
+        "vector_search_time": 0.05554676055908203,
+        "validation_time": 0.0015420913696289062,
+        "total_chunks_retrieved": 11,
+        "chunks_returned": 6,
+        "success": true,
+        "total_time": 4.983981132507324
+      },
+      "chunks_returned": 6,
+      "relevance_scores": [
+        0.30851063829787234,
+        0.3010204081632653,
+        0.27954545454545454,
+        0.27920792079207923,
+        0.278125,
+        0.2774725274725275
+      ]
+    },
+    {
+      "test_name": "query_data_scientist",
+      "success": true,
+      "total_time": 3.7142138481140137,
+      "error": null,
+      "stats": {
+        "start_time": 1765534155.5130172,
+        "job_extraction_time": 0.0048639774322509766,
+        "vector_search_time": 0.06620383262634277,
+        "validation_time": 0.0014719963073730469,
+        "total_chunks_retrieved": 11,
+        "chunks_returned": 6,
+        "success": true,
+        "total_time": 3.7140698432922363
+      },
+      "chunks_returned": 6,
+      "relevance_scores": [
+        0.33725490196078434,
+        0.3142857142857143,
+        0.2985221674876848,
+        0.29615384615384616,
+        0.2767379679144385,
+        0.27427184466019416
+      ]
+    },
+    {
+      "test_name": "query_ai_ml_engineer",
+      "success": true,
+      "total_time": 3.6302428245544434,
+      "error": null,
+      "stats": {
+        "start_time": 1765534159.233633,
+        "job_extraction_time": 0.004559040069580078,
+        "vector_search_time": 0.04901289939880371,
+        "validation_time": 0.001360177993774414,
+        "total_chunks_retrieved": 11,
+        "chunks_returned": 6,
+        "success": true,
+        "total_time": 3.6300809383392334
+      },
+      "chunks_returned": 6,
+      "relevance_scores": [
+        0.4217391304347826,
+        0.4159090909090909,
+        0.3075916230366492,
+        0.2983870967741935,
+        0.28173076923076923,
+        0.2780898876404494
+      ]
+    }
+  ],
+  "summary": {
+    "total_tests": 4,
+    "successful_tests": 4,
+    "success_rate": 1.0,
+    "total_time": 46.134334564208984
+  }
+}

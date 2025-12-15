@@ -1,0 +1,96 @@
+SHIVANSH SINGH
+AI/ML Engineer & Full-Stack Developer
+
+CONTACT INFORMATION
+Phone: (555) 123-4567
+Email: shivansh.singh@email.com
+LinkedIn: linkedin.com/in/shivanshsingh
+Location: San Francisco, CA
+
+PROFESSIONAL SUMMARY
+Experienced AI/ML Engineer with 4+ years of expertise in developing scalable machine learning systems, natural language processing, and full-stack web applications. Proven track record in deploying production-ready AI solutions, optimizing model performance, and leading cross-functional teams. Strong background in Python, TensorFlow, PyTorch, and cloud platforms (AWS, GCP).
+
+TECHNICAL SKILLS
+Programming Languages: Python, JavaScript, TypeScript, SQL, R
+Machine Learning: TensorFlow, PyTorch, Scikit-learn, XGBoost, Hugging Face Transformers
+Web Technologies: React, Node.js, FastAPI, Flask, GraphQL, REST APIs
+Cloud Platforms: AWS (SageMaker, Lambda, EC2), Google Cloud (Vertex AI, BigQuery), Azure
+Databases: PostgreSQL, MongoDB, Redis, Elasticsearch
+DevOps & Tools: Docker, Kubernetes, Git, CI/CD, MLflow, Weights & Biases
+Data Processing: Apache Spark, Pandas, NumPy, Apache Airflow
+
+PROFESSIONAL EXPERIENCE
+
+Senior AI/ML Engineer
+TechCorp Inc., San Francisco, CA
+January 2022 - Present
+
+• Designed and implemented end-to-end machine learning pipelines for customer churn prediction, achieving 15% improvement in model accuracy and $2M annual savings
+• Led development of NLP-based document analysis system using BERT transformers, processing 10,000+ documents daily with 94% accuracy
+• Built and deployed RAG (Retrieval-Augmented Generation) systems for intelligent document Q&A, reducing response time by 60%
+• Architected scalable ML infrastructure on AWS, handling 1M+ predictions per day with 99.9% uptime
+• Mentored junior engineers and established ML best practices, improving team productivity by 25%
+• Collaborated with product teams to integrate ML models into production applications
+
+AI/ML Engineer
+DataTech Solutions, Palo Alto, CA
+June 2020 - December 2021
+
+• Developed computer vision models for automated quality inspection, achieving 96% detection accuracy
+• Implemented recommendation systems using collaborative filtering and deep learning approaches
+• Created automated data pipelines using Apache Airflow, reducing manual processing time by 80%
+• Built RESTful APIs for ML model serving using FastAPI and Docker containers
+• Conducted A/B testing and model validation experiments, improving user engagement by 20%
+
+Software Engineer Intern
+StartupXYZ, Mountain View, CA
+Summer 2019
+
+• Developed full-stack web application using React and Node.js for internal dashboard
+• Implemented data visualization components using D3.js and Chart.js
+• Worked with SQL databases and optimized query performance for reporting features
+• Participated in agile development process and code reviews
+
+EDUCATION
+
+Master of Science in Computer Science
+Stanford University, Stanford, CA
+September 2018 - June 2020
+
+• GPA: 3.8/4.0
+• Relevant Coursework: Machine Learning, Deep Learning, Natural Language Processing, Distributed Systems
+• Research Assistant: Computer Vision Lab - Developed object detection algorithms using YOLO
+
+Bachelor of Technology in Computer Science
+Indian Institute of Technology, Delhi, India
+August 2014 - May 2018
+
+• GPA: 9.2/10.0 (First Class with Honors)
+• President of Computer Science Society
+• Final Year Project: "Smart Traffic Management System using IoT and ML"
+
+PROJECTS
+
+AI-Powered Resume Optimizer (Personal Project)
+• Built intelligent resume tailoring system using RAG and fine-tuned LLMs
+• Implemented semantic search for job-resume matching with 85% accuracy
+• Created web interface using Streamlit for user-friendly experience
+• Technologies: Python, LangChain, ChromaDB, Hugging Face, Streamlit
+
+Real-time Sentiment Analysis Platform
+• Developed streaming sentiment analysis system processing 1000+ tweets per minute
+• Used LSTM and Transformer models for emotion classification
+• Deployed on Kubernetes with auto-scaling capabilities
+• Technologies: Python, TensorFlow, Kafka, Kubernetes, Docker
+
+Smart Inventory Management System
+• Built IoT-based inventory tracking system for retail warehouses
+• Implemented computer vision for object detection and counting
+• Created real-time dashboard with predictive analytics
+• Technologies: Python, OpenCV, Raspberry Pi, Firebase, React
+
+CERTIFICATIONS
+• AWS Certified Machine Learning - Specialty (2023)
+• Google Cloud Professional Cloud Architect (2022)
+• TensorFlow Developer Certificate (2021)
+• Deep Learning Specialization - Coursera (2020)

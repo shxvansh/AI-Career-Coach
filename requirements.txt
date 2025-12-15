@@ -24,6 +24,8 @@ python-dotenv
 tavily-python
 jupyter
 pypdf
+PyMuPDF  # Better PDF text extraction
+loguru    # Structured logging
 
 # Web & API
 fastapi

@@ -1,0 +1,40 @@
+AI/ML Engineer - Senior Level
+
+About the Company:
+TechCorp is a leading technology company focused on AI-driven solutions for enterprise customers. We're looking for experienced AI/ML engineers to join our growing team.
+
+Job Description:
+We are seeking a Senior AI/ML Engineer to design, develop, and deploy machine learning models and systems. The ideal candidate will have strong experience in building production-ready ML pipelines and working with large-scale data.
+
+Key Responsibilities:
+• Design and implement end-to-end machine learning pipelines for various business applications
+• Develop and deploy NLP models using transformer architectures and BERT-based models
+• Build RAG (Retrieval-Augmented Generation) systems for intelligent document processing
+• Architect scalable ML infrastructure on cloud platforms (AWS, GCP, Azure)
+• Collaborate with cross-functional teams to integrate ML solutions into production systems
+• Optimize model performance and establish ML best practices
+
+Technical Requirements:
+• 4+ years of experience in machine learning and AI development
+• Strong proficiency in Python and ML frameworks (TensorFlow, PyTorch, Scikit-learn)
+• Experience with NLP and transformer models (BERT, GPT, etc.)
+• Hands-on experience with RAG systems and vector databases
+• Expertise in cloud platforms (AWS, Google Cloud, or Azure)
+• Experience with MLOps tools and model deployment
+• Knowledge of distributed computing and big data technologies
+• Familiarity with containerization (Docker, Kubernetes)
+
+Nice to Have:
+• Experience with LangChain or similar ML orchestration frameworks
+• Background in full-stack development
+• Research experience in ML/AI
+• Contributions to open-source ML projects
+
+Benefits:
+• Competitive salary and equity package
+• Health, dental, and vision insurance
+• Flexible work arrangements
+• Professional development budget
+• Collaborative and innovative work environment
+
+Location: San Francisco, CA (Hybrid)
