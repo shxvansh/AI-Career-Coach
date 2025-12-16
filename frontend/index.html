@@ -17,56 +17,35 @@
         </header>
 
         <main>
-            <div class="input-section">
-                <!-- Resume Card -->
-                <div class="card resume-card">
-                    <div class="card-header">
-                        <h2>1. Upload Resume</h2>
-                        <span class="step-indicator">Step 1</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="file-drop-area" id="resume-drop-area">
-                            <span class="file-msg">Drag & drop PDF or click to browse</span>
-                            <input class="file-input" type="file" id="resume-file" accept=".pdf">
-                        </div>
-                        <div id="resume-file-name" class="file-name hidden"></div>
-                        <button id="ingest-btn" class="primary-btn" disabled>Ingest Resume</button>
-                        <div id="ingest-status" class="status-msg"></div>
+            <!-- Chat Section Only -->
+            <div id="chat-section" class="chat-container">
+                <div class="chat-header">
+                    <h2>💬 Resume Assistant</h2>
+                    <button id="reset-chat-btn" class="secondary-btn small">Reset Chat</button>
+                </div>
+                <div id="chat-messages" class="chat-messages">
+                    <div class="message ai">
+                        Hello! I am your AI Career Coach. Please attach your resume and job description below to get started.
                     </div>
                 </div>
-
-                <!-- Job Card -->
-                <div class="card job-card">
-                    <div class="card-header">
-                        <h2>2. Tune for Job</h2>
-                        <span class="step-indicator">Step 2</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="file-drop-area" id="job-drop-area">
-                            <span class="file-msg">Drag & drop Job PDF or click to browse</span>
-                            <input class="file-input" type="file" id="job-file" accept=".pdf">
-                        </div>
-                        <div id="job-file-name" class="file-name hidden"></div>
-                        
-                        <div class="control-group">
-                            <label for="k-slider">Retrieval Depth (k): <span id="k-value">4</span></label>
-                            <input type="range" id="k-slider" min="1" max="8" value="4">
-                        </div>
-
-                        <button id="tune-btn" class="primary-btn" disabled>Analyze & Tune</button>
-                        <div id="tune-status" class="status-msg"></div>
-                    </div>
+                <div class="chat-input-area">
+                    <label for="file-upload-input" class="upload-btn" title="Attach files">
+                        📎
+                        <input type="file" id="file-upload-input" multiple class="hidden">
+                    </label>
+                    <input type="text" id="chat-input" placeholder="Type a message..." disabled>
+                    <button id="send-btn" disabled>Send</button>
                 </div>
+                <div id="attachment-preview" class="attachment-preview"></div>
             </div>
 
             <!-- Loading Overlay -->
             <div id="loading-overlay" class="hidden">
                 <div class="spinner"></div>
-                <p id="loading-text">Analyzing your resume against the job description...</p>
-                <p class="sub-loading">This involves RAG retrieval and LoRA inference (may take ~30s)</p>
+                <p id="loading-text">Processing...</p>
             </div>
 
-            <!-- Results Section -->
+            <!-- Results Section (Initially Hidden) -->
             <div id="results-section" class="results-container hidden">
                 <div class="tabs">
                     <button class="tab-btn active" data-tab="gap-analysis">Gap Analysis</button>

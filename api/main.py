@@ -69,6 +69,13 @@ async def ingest_resume_endpoint(file: UploadFile = File(...)):
         # Ingest
         stats = ingest_resume(resume_path=file_path, persist_dir=PERSIST_DIR)
         
+        # Also update agent context just in case
+        from agent.core import agent_instance
+        # We need text content for agent context. ingest_resume doesn't return text directly?
+        # It returns stats. 
+        # But we can read the file or use RAG later.
+        # For simplicity, let's just let the agent use RAG.
+        
         return JSONResponse(content={
             "status": "success",
             "message": "Resume ingested successfully",
@@ -98,6 +105,12 @@ async def tune_resume_endpoint(
         
         if not job_text:
             raise HTTPException(status_code=400, detail="Could not extract text from job PDF")
+
+        # --- UPDATE AGENT CONTEXT ---
+        from agent.core import agent_instance
+        agent_instance.context["job_text"] = job_text
+        agent_instance.context["job_source"] = str(job_path)
+        # ----------------------------
 
         # 2. Retrieve Resume Chunks (uses the global PERSIST_DIR)
         # Note: This assumes /ingest was called first to populate PERSIST_DIR
@@ -252,6 +265,37 @@ async def tune_resume_endpoint(
         import traceback
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+from pydantic import BaseModel
+
+from fastapi.responses import JSONResponse
+import asyncio
+
+class ChatRequest(BaseModel):
+    message: str
+
+@app.post("/chat")
+async def chat_endpoint(request: ChatRequest):
+    """
+    Chat endpoint for the AI Career Coach Agent.
+    Returns a standard JSON response.
+    """
+    from agent.core import agent_instance
+    
+    # Auto-advance state logic
+    if agent_instance.state == "INIT" and agent_instance.context.get("job_text"):
+         agent_instance.state = "RESEARCH"
+    
+    # Synchronous run (because agent is synchronous)
+    response_text = agent_instance.run(request.message)
+
+    return JSONResponse(content={"response": response_text})
+
+@app.post("/reset_chat")
+async def reset_chat():
+    from agent.core import agent_instance
+    agent_instance.__init__() # Reset
+    return {"status": "reset"}
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 

@@ -59,27 +59,27 @@ class ManualRAGTester:
         k = validate_retrieval_params(k)
 
         # Run query directly from text (no PDF required)
-        start_time = time.time()
+            start_time = time.time()
         chunks, stats = retrieve_resume_chunks_from_text(
             job_text=job_text,
-            persist_dir=self.persist_dir,
+                persist_dir=self.persist_dir,
             k=k,
             job_source="manual_input",
-        )
-        query_time = time.time() - start_time
+            )
+            query_time = time.time() - start_time
 
-        # Store in history
-        result = {
-            "timestamp": time.time(),
-            "query_text": job_text[:100] + "..." if len(job_text) > 100 else job_text,
-            "k": k,
-            "chunks": chunks,
-            "stats": stats,
-            "query_time": query_time
-        }
-        self.query_history.append(result)
+            # Store in history
+            result = {
+                "timestamp": time.time(),
+                "query_text": job_text[:100] + "..." if len(job_text) > 100 else job_text,
+                "k": k,
+                "chunks": chunks,
+                "stats": stats,
+                "query_time": query_time
+            }
+            self.query_history.append(result)
 
-        return result
+            return result
 
     def display_results(self, result: Dict[str, Any], show_chunks: bool = True):
         """Display query results in a user-friendly format."""

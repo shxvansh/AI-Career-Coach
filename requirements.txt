@@ -33,3 +33,6 @@ uvicorn
 streamlit
 requests
 python-multipart
+jinja2
+pdfkit
+

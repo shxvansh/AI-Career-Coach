@@ -77,7 +77,7 @@ def validate_job_file(job_pdf_path: Path) -> None:
             assert fitz is not None
             with fitz.open(str(job_pdf_path)) as doc:
                 if len(doc) == 0:
-                    raise ValueError("Job PDF appears to be empty (no pages)")
+                        raise ValueError("Job PDF appears to be empty (no pages)")
         else:
             reader = PdfReader(str(job_pdf_path))
             if not reader.pages:

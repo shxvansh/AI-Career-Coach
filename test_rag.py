@@ -462,8 +462,8 @@ def main():
                 tester.run_query_test(job_pdf, test_name)
         else:
             for job_file in sorted(args.jobs_dir.glob("*.txt")):
-                # Convert job description to PDF
-                job_pdf = job_file.parent / f"{job_file.stem}.pdf"
+            # Convert job description to PDF
+            job_pdf = job_file.parent / f"{job_file.stem}.pdf"
                 if not tester.convert_text_to_pdf(job_file, job_pdf):
                     print(f"Skipping {job_file.name} - PDF conversion failed")
                     continue
@@ -471,7 +471,7 @@ def main():
                     job_text = job_file.read_text(encoding="utf-8", errors="ignore")
                 except Exception:
                     job_text = ""
-                test_name = job_file.stem.replace("_job", "").replace("_", "_")
+            test_name = job_file.stem.replace("_job", "").replace("_", "_")
                 tester.run_query_test(job_pdf, test_name, job_text=job_text)
     else:
         print(f"Warning: Jobs directory {args.jobs_dir} not found")
