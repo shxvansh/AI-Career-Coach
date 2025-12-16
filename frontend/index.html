@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Career Coach</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">🚀 AI Career Coach</div>
+            <p class="subtitle">Resume Tuner & Gap Analyzer</p>
+        </header>
+
+        <main>
+            <div class="input-section">
+                <!-- Resume Card -->
+                <div class="card resume-card">
+                    <div class="card-header">
+                        <h2>1. Upload Resume</h2>
+                        <span class="step-indicator">Step 1</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="file-drop-area" id="resume-drop-area">
+                            <span class="file-msg">Drag & drop PDF or click to browse</span>
+                            <input class="file-input" type="file" id="resume-file" accept=".pdf">
+                        </div>
+                        <div id="resume-file-name" class="file-name hidden"></div>
+                        <button id="ingest-btn" class="primary-btn" disabled>Ingest Resume</button>
+                        <div id="ingest-status" class="status-msg"></div>
+                    </div>
+                </div>
+
+                <!-- Job Card -->
+                <div class="card job-card">
+                    <div class="card-header">
+                        <h2>2. Tune for Job</h2>
+                        <span class="step-indicator">Step 2</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="file-drop-area" id="job-drop-area">
+                            <span class="file-msg">Drag & drop Job PDF or click to browse</span>
+                            <input class="file-input" type="file" id="job-file" accept=".pdf">
+                        </div>
+                        <div id="job-file-name" class="file-name hidden"></div>
+                        
+                        <div class="control-group">
+                            <label for="k-slider">Retrieval Depth (k): <span id="k-value">4</span></label>
+                            <input type="range" id="k-slider" min="1" max="8" value="4">
+                        </div>
+
+                        <button id="tune-btn" class="primary-btn" disabled>Analyze & Tune</button>
+                        <div id="tune-status" class="status-msg"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading Overlay -->
+            <div id="loading-overlay" class="hidden">
+                <div class="spinner"></div>
+                <p id="loading-text">Analyzing your resume against the job description...</p>
+                <p class="sub-loading">This involves RAG retrieval and LoRA inference (may take ~30s)</p>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="results-container hidden">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="gap-analysis">Gap Analysis</button>
+                    <button class="tab-btn" data-tab="rewrite-suggestions">Rewrite Suggestions</button>
+                    <button class="tab-btn" data-tab="latex-bullets">LaTeX Bullets</button>
+                    <button class="tab-btn" data-tab="stats">Stats & Debug</button>
+                </div>
+
+                <div class="tab-content active" id="gap-analysis">
+                    <div id="gap-list" class="content-list"></div>
+                </div>
+
+                <div class="tab-content" id="rewrite-suggestions">
+                    <div id="suggestion-list" class="content-list"></div>
+                </div>
+
+                <div class="tab-content" id="latex-bullets">
+                    <div class="latex-container">
+                        <div class="code-header">
+                            <span>LaTeX Code</span>
+                            <button id="copy-latex-btn" class="secondary-btn small">Copy</button>
+                        </div>
+                        <pre><code id="latex-code"></code></pre>
+                    </div>
+                    <div id="bullets-list" class="content-list mt-4"></div>
+                </div>
+
+                <div class="tab-content" id="stats">
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <h4>Total Time</h4>
+                            <p id="total-time">-</p>
+                        </div>
+                        <div class="stat-box">
+                            <h4>Retrieved Chunks</h4>
+                            <p id="retrieved-count">-</p>
+                        </div>
+                    </div>
+                    <div class="json-viewer">
+                        <h4>Raw Guardrail Output</h4>
+                        <pre id="guardrail-json"></pre>
+                    </div>
+                    <div class="json-viewer">
+                        <h4>Retrieval Stats</h4>
+                        <pre id="retrieval-json"></pre>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
