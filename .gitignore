@@ -17,3 +17,19 @@ env/
 # OS specific
 .DS_Store
 
+# local vector DBs / artifacts
+chroma_db/
+tuner_db/
+**/*.sqlite3
+**/*.bin
+
+# finetuning outputs (checkpoints/adapters)
+finetuning/results/
+finetuning/resume-expert-lora/
+**/*.safetensors
+**/*.pt
+**/*.pth
+
+# generated outputs
+tuner_output.json
+
