@@ -254,3 +254,4 @@ class CareerAgent:
 
 agent_instance = CareerAgent()
 
+

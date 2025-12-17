@@ -84,3 +84,4 @@ class ResumeGenerator:
 
 generator = ResumeGenerator()
 
+
