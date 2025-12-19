@@ -1,5 +1,5 @@
 // Config
-const API_URL = ""; // Relative path since we serve from same origin
+const API_URL = ""; 
 
 // State
 let uploadedFiles = [];
@@ -8,10 +8,43 @@ let uploadedFiles = [];
 const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
-const resetChatBtn = document.getElementById('reset-chat-btn');
 const fileInput = document.getElementById('file-upload-input');
 const attachmentPreview = document.getElementById('attachment-preview');
 const loadingOverlay = document.getElementById('loading-overlay');
+const uploadTrigger = document.getElementById('upload-trigger');
+const uploadMenu = document.getElementById('upload-menu');
+
+function openUploadMenu() {
+    if (uploadMenu.classList.contains('hidden')) {
+        uploadMenu.classList.remove('hidden');
+        // allow layout before animating
+        requestAnimationFrame(() => uploadMenu.classList.add('show'));
+    } else {
+        uploadMenu.classList.add('show');
+    }
+}
+
+function closeUploadMenu() {
+    uploadMenu.classList.remove('show');
+    setTimeout(() => uploadMenu.classList.add('hidden'), 200);
+}
+
+// Toggle Upload Menu
+uploadTrigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (uploadMenu.classList.contains('show')) {
+        closeUploadMenu();
+    } else {
+        openUploadMenu();
+    }
+});
+
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+    if (!uploadMenu.contains(e.target) && !uploadTrigger.contains(e.target)) {
+        closeUploadMenu();
+    }
+});
 
 // Utils
 function createToastContainer() {
@@ -32,17 +65,13 @@ function showToast(message, type = 'normal') {
     `;
 
     toastContainer.appendChild(toast);
-
-    // Trigger animation
     setTimeout(() => toast.classList.add('show'), 10);
 
-    // Close button
     toast.querySelector('.toast-close').addEventListener('click', () => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
     });
 
-    // Auto dismiss
     setTimeout(() => {
         if (document.body.contains(toast)) {
             toast.classList.remove('show');
@@ -60,20 +89,18 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
-// Minimal, safe Markdown renderer (headings, bold, inline code, bullet lists, paragraphs)
 function renderMarkdown(mdText) {
     const escaped = escapeHtml(mdText);
 
-    // Inline transforms (operate on escaped text)
+    // Inline transforms
     const withInline = escaped
-        // inline code
         .replace(/`([^`]+)`/g, '<code>$1</code>')
-        // bold
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
     const lines = withInline.split('\n');
     const out = [];
     let inList = false;
+    let inCodeBlock = false;
 
     function closeList() {
         if (inList) {
@@ -85,7 +112,23 @@ function renderMarkdown(mdText) {
     for (const rawLine of lines) {
         const line = rawLine.trimEnd();
 
-        // Blank line => paragraph break / list break
+        // Code blocks
+        if (line.startsWith('```')) {
+            if (inCodeBlock) {
+                out.push('</code></pre>');
+                inCodeBlock = false;
+            } else {
+                out.push('<pre><code>');
+                inCodeBlock = true;
+            }
+            continue;
+        }
+        if (inCodeBlock) {
+            out.push(line + '\n');
+            continue;
+        }
+
+        // Blank line
         if (!line.trim()) {
             closeList();
             continue;
@@ -124,24 +167,38 @@ function renderMarkdown(mdText) {
     }
 
     closeList();
+    if (inCodeBlock) out.push('</code></pre>');
     return out.join('');
 }
 
 function addMessage(role, text) {
     const el = document.createElement('div');
     el.className = `message ${role}`;
+    
+    // Avatar
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${role}`;
+    avatar.textContent = role === 'ai' ? '✨' : '👤';
+    
+    // Content
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    
     if (role === 'ai') {
-        el.innerHTML = renderMarkdown(text);
+        content.innerHTML = text ? renderMarkdown(text) : '';
     } else {
-        el.textContent = text;
+        content.textContent = text;
     }
+    
+    el.appendChild(avatar);
+    el.appendChild(content);
+    
     chatMessages.appendChild(el);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    return content;
 }
 
-// Event Listeners
-
-// Chat Logic
 async function sendMessage() {
     const text = chatInput.value.trim();
     if (!text) return;
@@ -151,35 +208,43 @@ async function sendMessage() {
     chatInput.disabled = true;
     sendBtn.disabled = true;
 
-    // Show loading indicator
-    const loadingMsg = document.createElement('div');
-    loadingMsg.className = 'message ai loading';
-    loadingMsg.textContent = '...';
-    chatMessages.appendChild(loadingMsg);
+    // Create AI placeholder with loading dots
+    const aiContentEl = addMessage('ai', '');
+    aiContentEl.innerHTML = '<div class="loading-dots"><span>.</span><span>.</span><span>.</span></div>';
 
     try {
-        const res = await fetch(`${API_URL}/chat`, {
+        const response = await fetch(`${API_URL}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text })
         });
-        
-        const data = await res.json();
-        
-        // Remove loading
-        chatMessages.removeChild(loadingMsg);
-        
-        if (data.response) {
-             addMessage('ai', data.response);
-        } else {
-             addMessage('ai', JSON.stringify(data));
+
+        if (!response.ok) throw new Error('Network response was not ok');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+        let firstChunk = true;
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            if (firstChunk) {
+                aiContentEl.innerHTML = ""; // Clear loading dots
+                firstChunk = false;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            fullText += chunk;
+            
+            // Re-render markdown on every chunk (simple but effective for short chats)
+            aiContentEl.innerHTML = renderMarkdown(fullText);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-        
+
     } catch (err) {
-        if (document.body.contains(loadingMsg)) {
-            chatMessages.removeChild(loadingMsg);
-        }
-        addMessage('ai', `Error: ${err.message}`);
+        aiContentEl.innerHTML = `<span style="color: var(--error)">Error: ${err.message}</span>`;
         showToast(`Error: ${err.message}`, 'error');
     } finally {
         chatInput.disabled = false;
@@ -193,54 +258,26 @@ chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
 
-resetChatBtn.addEventListener('click', async () => {
-    await fetch(`${API_URL}/reset_chat`, { method: 'POST' });
-    chatMessages.innerHTML = '<div class="message ai">Chat reset. Hello! I\'m your AI Career Coach. How can I help you today?</div>';
-    showToast('Chat history reset', 'normal');
-});
-
 // File Upload Logic
 fileInput.addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    // Show loading
-    const loadingId = 'uploading-toast';
-    // We don't have a persistent toast ID logic, but multiple toasts are fine.
     showToast('Uploading files...', 'normal');
 
     for (const file of files) {
         const formData = new FormData();
-        
-        // Determine endpoint based on file type or just use generic ingest?
-        // The current backend has /ingest for Resume and /tune for Job.
-        // But /tune triggers a full analysis which we might not want yet.
-        // Let's deduce: if name contains "resume", use /ingest?
-        // Or better: Use /ingest for everything and let backend handle it?
-        // Backend /ingest only expects 'file'.
-        // Backend /tune expects 'job_file'.
-        
-        // Let's try to be smart.
         let endpoint = '/ingest';
         let paramName = 'file';
         
-        // Simple heuristic: if we already have a resume, assume next is job?
-        // Or check filename.
         if (file.name.toLowerCase().includes('job') || file.name.toLowerCase().includes('description')) {
-             endpoint = '/tune'; // This endpoint is heavy, it triggers analysis.
+             endpoint = '/tune';
              paramName = 'job_file';
-             // For now, let's just upload it. 
-             // Ideally we should have a lightweight /upload_job endpoint.
-             // But sticking to /tune is okay if we ignore the result or use it.
         }
         
         formData.append(paramName, file);
 
         try {
-            // Note: If using /tune, we might need to suppress the analysis result if we just want to chat.
-            // But getting the analysis is fine.
-            
-            // If we are sending job_file, /tune requires 'k' param? Defaults to 4.
             const res = await fetch(`${API_URL}${endpoint}`, {
                 method: 'POST',
                 body: formData
@@ -251,13 +288,12 @@ fileInput.addEventListener('change', async (e) => {
                 uploadedFiles.push(file.name);
                 showToast(`${file.name} uploaded successfully!`, 'success');
                 
-                // If it was a job file via /tune, the backend returns "analysis". 
-                // We could display it, or just let the chat know.
-                if (endpoint === '/tune') {
-                    addMessage('ai', "I've analyzed the job description. I'm ready to discuss gaps in your resume.");
-                } else {
-                    addMessage('ai', "I've received your resume. How can I help you? You can ask me about your resume, paste a job description, or ask general career questions.");
-                }
+                // Add system message
+                const sysMsg = endpoint === '/tune' 
+                    ? "I've analyzed the job description. I'm ready to discuss gaps in your resume."
+                    : "I've received your resume. How can I help you?";
+                
+                addMessage('ai', sysMsg);
                 
             } else {
                 showToast(`Error uploading ${file.name}: ${data.message}`, 'error');
@@ -268,8 +304,10 @@ fileInput.addEventListener('change', async (e) => {
     }
     
     renderAttachments();
-    // clear input
     fileInput.value = '';
+    
+    // Close menu
+    closeUploadMenu();
 });
 
 function renderAttachments() {

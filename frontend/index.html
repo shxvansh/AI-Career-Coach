@@ -12,88 +12,56 @@
 <body>
     <div class="app-container">
         <header>
-            <div class="logo">🚀 AI Career Coach</div>
-            <p class="subtitle">Resume Tuner & Gap Analyzer</p>
+            <div class="logo"><span>✨</span> AI Career Coach</div>
+            <!-- <button id="reset-chat-btn" class="secondary-btn small">Reset</button> -->
         </header>
 
         <main>
-            <!-- Chat Section Only -->
             <div id="chat-section" class="chat-container">
-                <div class="chat-header">
-                    <h2>💬 Resume Assistant</h2>
-                    <button id="reset-chat-btn" class="secondary-btn small">Reset Chat</button>
-                </div>
                 <div id="chat-messages" class="chat-messages">
                     <div class="message ai">
-                        Hello! I'm your AI Career Coach. You can chat with me about anything! Upload your resume to get personalized advice, or just ask me career questions.
+                        <div class="avatar ai">✨</div>
+                        <div class="message-content">
+                            <p>Hello! I'm your AI Career Coach. I can help you optimize your resume, analyze job descriptions, or answer career questions.</p>
+                        </div>
                     </div>
                 </div>
+                
+                <div class="attachment-preview" id="attachment-preview"></div>
+                
                 <div class="chat-input-area">
-                    <label for="file-upload-input" class="upload-btn" title="Attach files">
-                        📎
-                        <input type="file" id="file-upload-input" multiple class="hidden">
-                    </label>
-                    <input type="text" id="chat-input" placeholder="Type a message...">
-                    <button id="send-btn">Send</button>
+                    <!-- New Upload Trigger & Menu -->
+                    <div class="upload-container">
+                        <button id="upload-trigger" class="upload-btn" title="Add files">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <div id="upload-menu" class="upload-menu hidden">
+                            <label for="file-upload-input" class="upload-option">
+                                <span class="icon">📄</span>
+                                <span class="text">Upload Resume</span>
+                                <input type="file" id="file-upload-input" class="hidden" accept="application/pdf">
+                            </label>
+                        </div>
+                    </div>
+
+                    <input type="text" id="chat-input" placeholder="Ask anything about your career...">
+                    <button id="send-btn" title="Send message">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor"/>
+                        </svg>
+                    </button>
                 </div>
-                <div id="attachment-preview" class="attachment-preview"></div>
             </div>
 
-            <!-- Loading Overlay -->
+            <!-- Loading Overlay (hidden) -->
             <div id="loading-overlay" class="hidden">
                 <div class="spinner"></div>
-                <p id="loading-text">Processing...</p>
             </div>
 
-            <!-- Results Section (Initially Hidden) -->
-            <div id="results-section" class="results-container hidden">
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="gap-analysis">Gap Analysis</button>
-                    <button class="tab-btn" data-tab="rewrite-suggestions">Rewrite Suggestions</button>
-                    <button class="tab-btn" data-tab="latex-bullets">LaTeX Bullets</button>
-                    <button class="tab-btn" data-tab="stats">Stats & Debug</button>
-                </div>
-
-                <div class="tab-content active" id="gap-analysis">
-                    <div id="gap-list" class="content-list"></div>
-                </div>
-
-                <div class="tab-content" id="rewrite-suggestions">
-                    <div id="suggestion-list" class="content-list"></div>
-                </div>
-
-                <div class="tab-content" id="latex-bullets">
-                    <div class="latex-container">
-                        <div class="code-header">
-                            <span>LaTeX Code</span>
-                            <button id="copy-latex-btn" class="secondary-btn small">Copy</button>
-                        </div>
-                        <pre><code id="latex-code"></code></pre>
-                    </div>
-                    <div id="bullets-list" class="content-list mt-4"></div>
-                </div>
-
-                <div class="tab-content" id="stats">
-                    <div class="stats-grid">
-                        <div class="stat-box">
-                            <h4>Total Time</h4>
-                            <p id="total-time">-</p>
-                        </div>
-                        <div class="stat-box">
-                            <h4>Retrieved Chunks</h4>
-                            <p id="retrieved-count">-</p>
-                        </div>
-                    </div>
-                    <div class="json-viewer">
-                        <h4>Raw Guardrail Output</h4>
-                        <pre id="guardrail-json"></pre>
-                    </div>
-                    <div class="json-viewer">
-                        <h4>Retrieval Stats</h4>
-                        <pre id="retrieval-json"></pre>
-                    </div>
-                </div>
-            </div>
+            <!-- Legacy results section (hidden) -->
+            <div id="results-section" class="hidden"></div>
         </main>
     </div>
     <script src="app.js"></script>

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
 import os
@@ -276,21 +276,20 @@ class ChatRequest(BaseModel):
 async def chat_endpoint(request: ChatRequest):
     """
     Chat endpoint for the AI Career Coach Agent.
-    Returns a standard JSON response.
+    Returns a StreamingResponse (text/plain).
     """
     from agent.core import agent_instance
     
-    try:
-        # Synchronous run (because agent is synchronous)
-        response_text = agent_instance.run(request.message)
-        return JSONResponse(content={"response": response_text})
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return JSONResponse(
-            status_code=500, 
-            content={"response": f"Sorry, I encountered an error: {str(e)}"}
-        )
+    def iter_response():
+        try:
+            for chunk in agent_instance.run_stream(request.message):
+                yield chunk
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            yield f"Sorry, I encountered an error: {str(e)}"
+
+    return StreamingResponse(iter_response(), media_type="text/plain")
 
 @app.post("/reset_chat")
 async def reset_chat():

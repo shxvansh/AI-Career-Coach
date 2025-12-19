@@ -119,9 +119,10 @@ class CareerAgent:
         # Default: general chat
         return {"type": "general_chat", "message": text}
     
-    def run(self, user_input: str) -> str:
+    def run_stream(self, user_input: str):
         """
         Main conversational handler - routes to appropriate functions based on intent.
+        Yields chunks of text.
         """
         self.add_message("user", user_input)
         
@@ -132,57 +133,77 @@ class CareerAgent:
         print(f"DEBUG: Intent detected - {intent_type}")
         
         # Route to appropriate handler
+        generator = None
         if intent_type == "greeting":
-            return self._handle_greeting()
+            generator = self._handle_greeting_stream()
         
         elif intent_type == "job_description":
-            return self._handle_job_description(intent["text"])
+            generator = self._handle_job_description_stream(intent["text"])
         
         elif intent_type == "resume_question":
-            return self._handle_resume_question(intent["query"])
+            generator = self._handle_resume_question_stream(intent["query"])
         
         elif intent_type == "analysis_request":
-            return self._handle_analysis_request()
+            generator = self._handle_analysis_request_stream()
         
         elif intent_type == "analysis_request_no_jd":
-            return "I'd be happy to analyze your resume! Please provide the job description you'd like to compare it against."
+            def _gen(): yield "I'd be happy to analyze your resume! Please provide the job description you'd like to compare it against."
+            generator = _gen()
         
         elif intent_type == "general_question":
-            return self._handle_general_question(intent["query"])
+            generator = self._handle_general_question_stream(intent["query"])
         
         elif intent_type == "general_chat":
-            return self._handle_general_chat(intent["message"])
+            generator = self._handle_general_chat_stream(intent["message"])
         
         else:
-            return self._handle_general_chat(user_input)
+            generator = self._handle_general_chat_stream(user_input)
+            
+        # Consume generator, yield chunks, and accumulate for history
+        full_response = ""
+        for chunk in generator:
+            full_response += chunk
+            yield chunk
+            
+        # Add final full response to memory
+        self.add_message("ai", full_response)
 
-    def _handle_greeting(self) -> str:
+    def run(self, user_input: str) -> str:
+        """Legacy synchronous run"""
+        response = ""
+        for chunk in self.run_stream(user_input):
+            response += chunk
+        return response
+
+    def _handle_greeting_stream(self):
         """Handle greetings"""
         if self.context["has_resume"]:
-            return "Hello! I have your resume loaded. How can I help you today? You can ask me about your resume, provide a job description for analysis, or ask me general career questions."
+            yield "Hello! I have your resume loaded. How can I help you today? You can ask me about your resume, provide a job description for analysis, or ask me general career questions."
         else:
-            return "Hello! I'm your AI Career Coach. Please upload your resume to get started, and I'll be happy to help you with career advice, resume analysis, and job matching!"
+            yield "Hello! I'm your AI Career Coach. Please upload your resume to get started, and I'll be happy to help you with career advice, resume analysis, and job matching!"
     
-    def _handle_job_description(self, job_text: str) -> str:
+    def _handle_job_description_stream(self, job_text: str):
         """Handle when user provides a job description"""
         if not self.context["has_resume"]:
-            return "I'd be happy to analyze this job description against your resume, but I don't have your resume yet. Please upload it first!"
+            yield "I'd be happy to analyze this job description against your resume, but I don't have your resume yet. Please upload it first!"
+            return
         
         # Store the job description
         self.context["job_text"] = job_text
         
         # Perform analysis
         try:
+            # Analysis is currently monolithic (not streaming), so we yield the result as one chunk
             analysis_result = self._perform_gap_analysis(job_text)
-            response = self.add_message("ai", analysis_result)
-            return analysis_result
+            yield analysis_result
         except Exception as e:
-            return f"I encountered an error analyzing the job description: {str(e)}"
+            yield f"I encountered an error analyzing the job description: {str(e)}"
     
-    def _handle_resume_question(self, query: str) -> str:
+    def _handle_resume_question_stream(self, query: str):
         """Handle questions about the user's resume"""
         if not self.context["has_resume"]:
-            return "I don't have your resume loaded yet. Please upload it first so I can answer questions about it!"
+            yield "I don't have your resume loaded yet. Please upload it first so I can answer questions about it!"
+            return
         
         try:
             # Retrieve relevant chunks from resume
@@ -194,7 +215,8 @@ class CareerAgent:
             )
             
             if not chunks:
-                return "I couldn't find relevant information in your resume to answer that question. Could you rephrase or ask something else?"
+                yield "I couldn't find relevant information in your resume to answer that question. Could you rephrase or ask something else?"
+                return
             
             context_str = "\n\n".join([c.page_content for c in chunks])
             
@@ -218,28 +240,30 @@ Instructions:
 
 Answer:"""
             
-            response = model.chat(prompt)
-            self.add_message("ai", response)
-            return response
+            # Stream response
+            for chunk in model.chat_stream(prompt):
+                yield chunk
             
         except Exception as e:
-            return f"I had trouble accessing your resume information: {str(e)}"
+            yield f"I had trouble accessing your resume information: {str(e)}"
     
-    def _handle_analysis_request(self) -> str:
+    def _handle_analysis_request_stream(self):
         """Handle explicit requests for gap/strength/weakness analysis"""
         if not self.context["has_resume"]:
-            return "I need your resume to perform an analysis. Please upload it first!"
+            yield "I need your resume to perform an analysis. Please upload it first!"
+            return
         
         if not self.context.get("job_text"):
-            return "I'd be happy to analyze your resume! Could you provide the job description you'd like me to compare it against?"
+            yield "I'd be happy to analyze your resume! Could you provide the job description you'd like me to compare it against?"
+            return
         
-        # Perform the analysis
+        # Perform the analysis (monolithic)
         try:
-            return self._perform_gap_analysis(self.context["job_text"])
+            yield self._perform_gap_analysis(self.context["job_text"])
         except Exception as e:
-            return f"I encountered an error during analysis: {str(e)}"
+            yield f"I encountered an error during analysis: {str(e)}"
     
-    def _handle_general_question(self, query: str) -> str:
+    def _handle_general_question_stream(self, query: str):
         """Handle general career questions using web search + LLM"""
         try:
             # Use web search to get current information
@@ -266,20 +290,18 @@ Instructions:
 
 Answer:"""
                 
-                response = model.chat(prompt)
-                self.add_message("ai", response)
-                return response
+                for chunk in model.chat_stream(prompt):
+                    yield chunk
             else:
                 # Fallback if Tavily is not available
                 model = self._get_model()
-                response = model.chat(f"As a career coach, answer this question: {query}")
-                self.add_message("ai", response)
-                return response
+                for chunk in model.chat_stream(f"As a career coach, answer this question: {query}"):
+                    yield chunk
                 
         except Exception as e:
-            return f"I had trouble researching that question: {str(e)}"
+            yield f"I had trouble researching that question: {str(e)}"
     
-    def _handle_general_chat(self, message: str) -> str:
+    def _handle_general_chat_stream(self, message: str):
         """Handle general conversation"""
         model = self._get_model()
         
@@ -305,11 +327,11 @@ Respond in Markdown. Prefer bullet points when listing multiple items. Use **bol
 Response:"""
         
         try:
-            response = model.chat(prompt)
-            self.add_message("ai", response)
-            return response
+            for chunk in model.chat_stream(prompt):
+                yield chunk
         except Exception as e:
-            return "I'm here to help with your career! You can ask me about your resume, provide job descriptions for analysis, or ask career-related questions."
+            yield "I'm here to help with your career! You can ask me about your resume, provide job descriptions for analysis, or ask career-related questions."
+
     
     def _perform_gap_analysis(self, job_text: str) -> str:
         """Perform comprehensive gap analysis with optional web research"""
@@ -361,7 +383,7 @@ Response:"""
             
             # Format response
             response = self._format_analysis_response(analysis)
-            self.add_message("ai", response)
+            # self.add_message("ai", response) # Handled by run_stream
             return response
             
         except Exception as e:
