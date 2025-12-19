@@ -2,34 +2,46 @@ import os
 import json
 import re
 import torch
+from google import genai
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
 class ResumeExpert:
-    def __init__(self, base_model_name="Qwen/Qwen2.5-0.5B-Instruct", adapter_path="finetuning/resume-expert-lora"):
+    def __init__(self, base_model_name="Qwen/Qwen2.5-0.5B-Instruct", adapter_path="finetuning/resume-expert-lora", use_gemini=False):
         # Avoid tokenizers parallelism fork warning/noise
         os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-
-        self.device = "mps" if torch.backends.mps.is_available() else "cpu"
-        print(f"Loading Resume Expert on {self.device}...")
         
-        # Load Base Model
-        self.tokenizer = AutoTokenizer.from_pretrained(base_model_name, trust_remote_code=True)
-        self.base_model = AutoModelForCausalLM.from_pretrained(
-            base_model_name,
-            torch_dtype=torch.float16 if self.device == "mps" else torch.float32,
-            device_map={"": self.device}, # Force device
-            trust_remote_code=True
-        )
+        self.use_gemini = use_gemini
         
-        # Load Adapter
-        if adapter_path:
-            print(f"Loading LoRA adapter from {adapter_path}")
-            self.model = PeftModel.from_pretrained(self.base_model, adapter_path)
+        if self.use_gemini:
+            print("Loading Resume Expert with Google Gemini API...")
+            api_key = os.getenv("GEMINI_API_KEY")
+            if not api_key:
+                raise ValueError("GEMINI_API_KEY environment variable not set")
+            self.client = genai.Client(api_key=api_key)
+            # Use 2.5-flash-lite for better availability and lower quota usage
+            self.model_name = 'gemini-2.5-flash-lite'
         else:
-            self.model = self.base_model
+            self.device = "mps" if torch.backends.mps.is_available() else "cpu"
+            print(f"Loading Resume Expert on {self.device}...")
+            
+            # Load Base Model
+            self.tokenizer = AutoTokenizer.from_pretrained(base_model_name, trust_remote_code=True)
+            self.base_model = AutoModelForCausalLM.from_pretrained(
+                base_model_name,
+                torch_dtype=torch.float16 if self.device == "mps" else torch.float32,
+                device_map={"": self.device}, # Force device
+                trust_remote_code=True
+            )
+            
+            # Load Adapter
+            if adapter_path:
+                print(f"Loading LoRA adapter from {adapter_path}")
+                self.model = PeftModel.from_pretrained(self.base_model, adapter_path)
+            else:
+                self.model = self.base_model
 
-        self.model.eval()
+            self.model.eval()
 
     @staticmethod
     def _extract_first_json_object(text: str) -> str | None:
@@ -183,28 +195,42 @@ Valid chunk ids you may cite: CHUNK 1, CHUNK 2, CHUNK 3, CHUNK 4 only.
 
 Output (JSON only):"""
 
-        # Use the model's chat template for better instruction following.
-        messages = [
-            {"role": "system", "content": "You follow instructions exactly and output only valid JSON."},
-            {"role": "user", "content": user_prompt},
-        ]
-        prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
-        
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                repetition_penalty=1.1,
-                do_sample=False,
-                num_beams=1,
-                pad_token_id=self.tokenizer.eos_token_id
-            )
-        
-        # Decode ONLY the generated completion tokens (exclude the prompt tokens).
-        prompt_len = int(inputs["input_ids"].shape[-1])
-        generated_ids = outputs[0][prompt_len:]
-        completion = self.tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+        if self.use_gemini:
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=user_prompt,
+                    config={
+                        'temperature': 0.2,
+                        'max_output_tokens': max_new_tokens
+                    }
+                )
+                completion = response.text
+            except Exception as e:
+                return {"raw_text": f"Gemini Error: {e}"}
+        else:
+            # Use the model's chat template for better instruction following.
+            messages = [
+                {"role": "system", "content": "You follow instructions exactly and output only valid JSON."},
+                {"role": "user", "content": user_prompt},
+            ]
+            prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+            
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_new_tokens,
+                    repetition_penalty=1.1,
+                    do_sample=False,
+                    num_beams=1,
+                    pad_token_id=self.tokenizer.eos_token_id
+                )
+            
+            # Decode ONLY the generated completion tokens (exclude the prompt tokens).
+            prompt_len = int(inputs["input_ids"].shape[-1])
+            generated_ids = outputs[0][prompt_len:]
+            completion = self.tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
 
         extracted = self._extract_first_json_object(completion)
         if not extracted:
@@ -221,6 +247,61 @@ Output (JSON only):"""
         """Backwards compatible: returns a string (JSON or raw text)."""
         result = self.generate_grounded_json(resume_context=resume_context, job_description=job_description)
         return json.dumps(result, ensure_ascii=False)
+
+    def chat(self, prompt: str, max_new_tokens: int = 900) -> str:
+        """
+        Generic chat capability using the loaded model.
+        """
+        if self.use_gemini:
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt,
+                    config={
+                        'temperature': 0.7,
+                        'max_output_tokens': max_new_tokens
+                    }
+                )
+                # Debug logging
+                print(f"DEBUG: Gemini response successful")
+                
+                # Try different ways to get the text
+                if hasattr(response, 'text'):
+                    result = response.text
+                elif hasattr(response, 'candidates') and response.candidates:
+                    result = response.candidates[0].content.parts[0].text
+                else:
+                    result = str(response)
+                
+                print(f"DEBUG: Extracted text length: {len(result)}")
+                return result
+            except Exception as e:
+                import traceback
+                error_msg = f"Gemini API temporarily unavailable (503 error - overloaded). The system is still using Gemini but you may experience delays. Please try again in a moment."
+                print(f"WARNING: Gemini error: {e}")
+                # Return a friendly error instead of crashing
+                return error_msg
+        else:
+            messages = [
+                {"role": "system", "content": "You are a helpful AI Career Coach. Answer questions based strictly on the provided resume context."},
+                {"role": "user", "content": prompt},
+            ]
+            formatted_prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            inputs = self.tokenizer(formatted_prompt, return_tensors="pt").to(self.device)
+            
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_new_tokens,
+                    repetition_penalty=1.1,
+                    do_sample=True, # Allow some creativity for chat
+                    temperature=0.7,
+                    pad_token_id=self.tokenizer.eos_token_id
+                )
+            
+            prompt_len = int(inputs["input_ids"].shape[-1])
+            generated_ids = outputs[0][prompt_len:]
+            return self.tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
 
 if __name__ == "__main__":
     # Test run

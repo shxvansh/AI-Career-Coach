@@ -306,6 +306,42 @@ input[type="range"] {
     position: relative;
 }
 
+.message h1, .message h2, .message h3, .message h4 {
+    margin: 0.25rem 0 0.5rem 0;
+    line-height: 1.25;
+}
+
+.message h1 { font-size: 1.1rem; font-weight: 700; }
+.message h2 { font-size: 1.05rem; font-weight: 700; }
+.message h3 { font-size: 1.0rem; font-weight: 700; }
+.message h4 { font-size: 0.95rem; font-weight: 700; }
+
+.message p {
+    margin: 0.25rem 0;
+}
+
+.message ul {
+    margin: 0.25rem 0 0.25rem 1.25rem;
+    padding-left: 1rem;
+}
+
+.message li {
+    margin: 0.15rem 0;
+}
+
+.message code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.9em;
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    padding: 0.05rem 0.35rem;
+    border-radius: 6px;
+}
+
+.message.ai strong {
+    font-weight: 700;
+}
+
 .message.ai {
     align-self: flex-start;
     background: white;

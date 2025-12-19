@@ -37,15 +37,17 @@ expert_model: Optional[ResumeExpert] = None
 def get_model():
     global expert_model
     if expert_model is None:
-        if not ADAPTER_PATH.exists():
+        # Check if Gemini API key is available
+        use_gemini = bool(os.getenv("GEMINI_API_KEY"))
+        
+        if use_gemini:
+            print("Using Gemini API for inference")
+            expert_model = ResumeExpert(use_gemini=True)
+        elif not ADAPTER_PATH.exists():
             print(f"WARNING: Adapter path {ADAPTER_PATH} not found. Running inference with base model only (or failing if strict).")
-            # We can still run with base model if adapter is missing, or fail.
-            # For now, let's assume base model is okay or let ResumeExpert handle it.
-            # ResumeExpert(adapter_path=...) handles missing adapter by printing a warning?
-            # Looking at inference.py: if adapter_path: ... else: self.model = self.base_model
-            # So it is safe.
-            pass
-        expert_model = ResumeExpert(adapter_path=str(ADAPTER_PATH))
+            expert_model = ResumeExpert(adapter_path=None)
+        else:
+            expert_model = ResumeExpert(adapter_path=str(ADAPTER_PATH))
     return expert_model
 
 @app.on_event("startup")
@@ -69,12 +71,9 @@ async def ingest_resume_endpoint(file: UploadFile = File(...)):
         # Ingest
         stats = ingest_resume(resume_path=file_path, persist_dir=PERSIST_DIR)
         
-        # Also update agent context just in case
+        # Update agent context
         from agent.core import agent_instance
-        # We need text content for agent context. ingest_resume doesn't return text directly?
-        # It returns stats. 
-        # But we can read the file or use RAG later.
-        # For simplicity, let's just let the agent use RAG.
+        agent_instance.context["has_resume"] = True
         
         return JSONResponse(content={
             "status": "success",
@@ -106,11 +105,10 @@ async def tune_resume_endpoint(
         if not job_text:
             raise HTTPException(status_code=400, detail="Could not extract text from job PDF")
 
-        # --- UPDATE AGENT CONTEXT ---
+        # Update agent context
         from agent.core import agent_instance
         agent_instance.context["job_text"] = job_text
         agent_instance.context["job_source"] = str(job_path)
-        # ----------------------------
 
         # 2. Retrieve Resume Chunks (uses the global PERSIST_DIR)
         # Note: This assumes /ingest was called first to populate PERSIST_DIR
@@ -282,19 +280,25 @@ async def chat_endpoint(request: ChatRequest):
     """
     from agent.core import agent_instance
     
-    # Auto-advance state logic
-    if agent_instance.state == "INIT" and agent_instance.context.get("job_text"):
-         agent_instance.state = "RESEARCH"
-    
-    # Synchronous run (because agent is synchronous)
-    response_text = agent_instance.run(request.message)
-
-    return JSONResponse(content={"response": response_text})
+    try:
+        # Synchronous run (because agent is synchronous)
+        response_text = agent_instance.run(request.message)
+        return JSONResponse(content={"response": response_text})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500, 
+            content={"response": f"Sorry, I encountered an error: {str(e)}"}
+        )
 
 @app.post("/reset_chat")
 async def reset_chat():
     from agent.core import agent_instance
-    agent_instance.__init__() # Reset
+    # Preserve the resume status
+    has_resume = agent_instance.context.get("has_resume", False)
+    agent_instance.__init__()
+    agent_instance.context["has_resume"] = has_resume
     return {"status": "reset"}
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")

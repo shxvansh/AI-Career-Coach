@@ -1,7 +1,8 @@
 import os
 import re
+import json
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_community.tools.tavily_search import TavilySearchResults
 from dotenv import load_dotenv
@@ -21,30 +22,46 @@ ADAPTER_PATH = Path("finetuning/resume-expert-lora")
 class CareerAgent:
     def __init__(self):
         self.memory: List[Any] = []
-        self.state = "INIT"  # INIT, RESEARCH, GAP_ANALYSIS, VERIFICATION, GENERATION
         self.context = {
-            "resume_text": "",
-            "job_text": "",
-            "job_source": "", # Path to job PDF
-            "web_research": "",
-            "missing_skills": [],
-            "verified_skills": [],
-            "gap_analysis_result": None
+            "has_resume": False,
+            "job_text": None,
+            "job_source": None,
+            "last_gap_analysis": None
         }
         
         # Tools
-        self.tavily = TavilySearchResults(max_results=3)
+        self.tavily = None  # Initialize on demand
         self.expert_model = None
 
     def _get_model(self):
         if self.expert_model is None:
-            if ADAPTER_PATH.exists():
+            # Check if Gemini API key is available
+            use_gemini = bool(os.getenv("GEMINI_API_KEY"))
+            
+            if use_gemini:
+                print("Using Gemini API for Agent inference")
+                self.expert_model = ResumeExpert(use_gemini=True)
+            elif ADAPTER_PATH.exists():
                 print(f"Loading Resume Expert from {ADAPTER_PATH}")
                 self.expert_model = ResumeExpert(adapter_path=str(ADAPTER_PATH))
             else:
                 print("Warning: Adapter not found, loading base model.")
                 self.expert_model = ResumeExpert(adapter_path=None)
         return self.expert_model
+    
+    def _get_tavily(self):
+        """Initialize Tavily search on demand"""
+        if self.tavily is None:
+            try:
+                # Check if API key exists
+                if not os.getenv("TAVILY_API_KEY"):
+                    print("Info: TAVILY_API_KEY not set. Web search will be unavailable.")
+                    return None
+                self.tavily = TavilySearchResults(max_results=3)
+            except Exception as e:
+                print(f"Warning: Could not initialize Tavily search: {e}")
+                self.tavily = None
+        return self.tavily
 
     def add_message(self, role: str, content: str):
         if role == "user":
@@ -52,205 +69,359 @@ class CareerAgent:
         else:
             self.memory.append(AIMessage(content=content))
 
-    def _generate_resume(self) -> str:
-        # Import Generator
-        from agent.generator import generator
+    def _classify_intent(self, text: str) -> Dict[str, Any]:
+        """
+        Intelligently classifies user intent and extracts relevant information.
+        Returns a dict with 'type' and additional context.
+        """
+        text_lower = text.lower()
+        text_len = len(text)
         
-        # 1. Parse Resume (Naive placeholder or we can use PyMuPDF to get text struct)
-        # For this prototype, we rely on the heuristic generator.data_from_chunks
-        # but to make it real, we need structured data.
-        # Let's rely on the dummy data in generator.py for now, injected with real verified skills.
+        # Check for greetings
+        greetings = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening']
+        if any(text_lower.strip().startswith(g) for g in greetings) and text_len < 50:
+            return {"type": "greeting"}
         
-        # In a real implementation:
-        # parsed_resume = self._parse_resume(self.context["resume_text"])
+        # Check for job description (long text with JD keywords)
+        jd_keywords = ['responsibilities', 'requirements', 'qualifications', 'job description', 
+                       'salary', 'benefits', 'position', 'role', 'duties', 'apply', 'candidate',
+                       'experience required', 'skills required', 'preferred qualifications']
+        jd_score = sum(1 for k in jd_keywords if k in text_lower)
         
-        final_data = generator.data_from_chunks(
-            chunks=[], # We don't have structured chunks yet
-            gap_analysis=self.context.get("gap_analysis_result"),
-            verified_skills=self.context.get("verified_skills", [])
-        )
+        if (text_len > 300 and jd_score >= 2) or jd_score >= 4:
+            return {"type": "job_description", "text": text}
         
-        # Add a name from filename if possible
-        if self.context.get("resume_text"):
-             # Heuristic: First line is name
-             final_data["name"] = self.context["resume_text"].split('\n')[0].strip()
+        # Check for resume questions
+        resume_keywords = ['my resume', 'my cv', 'my experience', 'my skills', 'my background',
+                          'resume', 'cv', 'experiences', 'qualifications']
+        if any(k in text_lower for k in resume_keywords):
+            return {"type": "resume_question", "query": text}
         
-        output_path = generator.generate(final_data)
+        # Check for analysis requests
+        analysis_keywords = ['analyze', 'compare', 'gap', 'strength', 'weakness', 'match',
+                            'fit', 'suitable', 'qualified']
+        if any(k in text_lower for k in analysis_keywords):
+            if self.context.get("job_text"):
+                return {"type": "analysis_request"}
+            else:
+                return {"type": "analysis_request_no_jd"}
         
-        return f"Resume generated successfully! You can download it at: {output_path}"
-
+        # Check if it's a general question (needs web search)
+        question_indicators = ['what is', 'what are', 'how to', 'why', 'when', 'where',
+                              'explain', 'tell me about', 'describe']
+        if any(q in text_lower for q in question_indicators) or '?' in text:
+            # If has resume context, it's likely about resume
+            if self.context["has_resume"]:
+                return {"type": "resume_question", "query": text}
+            else:
+                return {"type": "general_question", "query": text}
+        
+        # Default: general chat
+        return {"type": "general_chat", "message": text}
+    
     def run(self, user_input: str) -> str:
+        """
+        Main conversational handler - routes to appropriate functions based on intent.
+        """
         self.add_message("user", user_input)
         
-        # Simple State Machine
-        if self.state == "INIT":
-            if self.context.get("job_text"):
-                 self.state = "RESEARCH"
-                 return self._perform_research()
-            response = "Hello! I am your AI Career Coach. Please upload your Resume and the Job Description PDF to get started."
-            self.add_message("ai", response)
-            return response
+        # Classify intent
+        intent = self._classify_intent(user_input)
+        intent_type = intent.get("type")
+        
+        print(f"DEBUG: Intent detected - {intent_type}")
+        
+        # Route to appropriate handler
+        if intent_type == "greeting":
+            return self._handle_greeting()
+        
+        elif intent_type == "job_description":
+            return self._handle_job_description(intent["text"])
+        
+        elif intent_type == "resume_question":
+            return self._handle_resume_question(intent["query"])
+        
+        elif intent_type == "analysis_request":
+            return self._handle_analysis_request()
+        
+        elif intent_type == "analysis_request_no_jd":
+            return "I'd be happy to analyze your resume! Please provide the job description you'd like to compare it against."
+        
+        elif intent_type == "general_question":
+            return self._handle_general_question(intent["query"])
+        
+        elif intent_type == "general_chat":
+            return self._handle_general_chat(intent["message"])
+        
+        else:
+            return self._handle_general_chat(user_input)
 
-        elif self.state == "RESEARCH":
-            if not self.context.get("job_text"):
-                self.state = "INIT"
-                return "Please upload the files first."
-            return self._perform_research()
-
-        elif self.state == "GAP_ANALYSIS":
-            return self._perform_gap_analysis()
-
-        elif self.state == "VERIFICATION":
-            return self._handle_verification(user_input)
-
-        elif self.state == "GENERATION":
-            return self._generate_resume()
-
-        return "I'm not sure what to do next."
-
-    def _extract_keywords(self, text: str) -> str:
-        # Simple heuristic to get job title/company
-        # "Machine Learning Engineer at Google"
-        # We can try to extract the first few lines or look for "Company"
-        lines = text.split('\n')[:5]
-        return " ".join(lines).strip()[:100]
-
-    def _perform_research(self) -> str:
-        job_text = self.context.get("job_text", "")
-        if not job_text:
-            return "Error: Job text missing."
-            
-        # Extract query
-        # Use first 200 chars as query proxy or extract title
-        query = f"Job requirements for: {self._extract_keywords(job_text)}"
+    def _handle_greeting(self) -> str:
+        """Handle greetings"""
+        if self.context["has_resume"]:
+            return "Hello! I have your resume loaded. How can I help you today? You can ask me about your resume, provide a job description for analysis, or ask me general career questions."
+        else:
+            return "Hello! I'm your AI Career Coach. Please upload your resume to get started, and I'll be happy to help you with career advice, resume analysis, and job matching!"
+    
+    def _handle_job_description(self, job_text: str) -> str:
+        """Handle when user provides a job description"""
+        if not self.context["has_resume"]:
+            return "I'd be happy to analyze this job description against your resume, but I don't have your resume yet. Please upload it first!"
+        
+        # Store the job description
+        self.context["job_text"] = job_text
+        
+        # Perform analysis
+        try:
+            analysis_result = self._perform_gap_analysis(job_text)
+            response = self.add_message("ai", analysis_result)
+            return analysis_result
+        except Exception as e:
+            return f"I encountered an error analyzing the job description: {str(e)}"
+    
+    def _handle_resume_question(self, query: str) -> str:
+        """Handle questions about the user's resume"""
+        if not self.context["has_resume"]:
+            return "I don't have your resume loaded yet. Please upload it first so I can answer questions about it!"
         
         try:
-            results = self.tavily.invoke(query)
-            summary = "\n".join([f"- {r['content']}" for r in results])
-            self.context["web_research"] = summary
-            
-            response = (
-                f"I've researched the role and company online. Here are some key insights:\n\n"
-                f"{summary}\n\n"
-                "I will now cross-reference this with your resume to find gaps."
+            # Retrieve relevant chunks from resume
+            chunks, _ = retrieve_resume_chunks_from_text(
+                job_text=query,
+                persist_dir=PERSIST_DIR,
+                k=3,
+                job_source="chat_query"
             )
-            self.state = "GAP_ANALYSIS"
-            self.add_message("ai", response)
             
-            # Auto-trigger gap analysis? 
-            # In a chat loop, usually we wait for user, but here the agent is driving.
-            # Let's return the research and immediately hint we are moving to gap analysis.
-            # Or better, just do it in next turn? 
-            # Let's auto-advance state but return this message. 
-            # The API endpoint loop checks state. We can chain calls if we want.
-            # For now, return this, and user says "Okay" or "Proceed".
+            if not chunks:
+                return "I couldn't find relevant information in your resume to answer that question. Could you rephrase or ask something else?"
+            
+            context_str = "\n\n".join([c.page_content for c in chunks])
+            
+            # Use LLM to answer
+            model = self._get_model()
+            prompt = f"""You are an AI Career Coach helping someone with their resume.
+
+Resume Context (relevant sections):
+{context_str}
+
+User Question: {query}
+
+Instructions:
+1. Answer the question using ONLY information from the Resume Context above
+2. Be conversational, friendly, and helpful
+3. If the information isn't in the resume context, say so politely
+4. Keep your response concise but complete
+5. Respond in Markdown.
+6. If you provide strengths/weaknesses, use exactly these headings: "### Strengths" and "### Weaknesses", then use bullet points starting with "- ".
+7. Use **bold** for key phrases, and keep lines short for readability.
+
+Answer:"""
+            
+            response = model.chat(prompt)
+            self.add_message("ai", response)
+            return response
+            
+        except Exception as e:
+            return f"I had trouble accessing your resume information: {str(e)}"
+    
+    def _handle_analysis_request(self) -> str:
+        """Handle explicit requests for gap/strength/weakness analysis"""
+        if not self.context["has_resume"]:
+            return "I need your resume to perform an analysis. Please upload it first!"
+        
+        if not self.context.get("job_text"):
+            return "I'd be happy to analyze your resume! Could you provide the job description you'd like me to compare it against?"
+        
+        # Perform the analysis
+        try:
+            return self._perform_gap_analysis(self.context["job_text"])
+        except Exception as e:
+            return f"I encountered an error during analysis: {str(e)}"
+    
+    def _handle_general_question(self, query: str) -> str:
+        """Handle general career questions using web search + LLM"""
+        try:
+            # Use web search to get current information
+            tavily = self._get_tavily()
+            if tavily:
+                search_results = tavily.invoke(query)
+                context = "\n\n".join([f"Source: {r.get('url', 'Unknown')}\n{r.get('content', '')}" 
+                                      for r in search_results])
+                
+                model = self._get_model()
+                prompt = f"""You are an AI Career Coach. Answer the user's question using the web search results provided.
+
+Web Search Results:
+{context}
+
+User Question: {query}
+
+Instructions:
+1. Provide a helpful, accurate answer based on the search results
+2. Be conversational and professional
+3. If relevant, relate it to career advice
+4. Keep it concise but informative
+5. Respond in Markdown. Prefer bullet points and short paragraphs. Use **bold** for key phrases.
+
+Answer:"""
+                
+                response = model.chat(prompt)
+                self.add_message("ai", response)
+                return response
+            else:
+                # Fallback if Tavily is not available
+                model = self._get_model()
+                response = model.chat(f"As a career coach, answer this question: {query}")
+                self.add_message("ai", response)
+                return response
+                
+        except Exception as e:
+            return f"I had trouble researching that question: {str(e)}"
+    
+    def _handle_general_chat(self, message: str) -> str:
+        """Handle general conversation"""
+        model = self._get_model()
+        
+        # Build context from recent conversation
+        recent_history = ""
+        if len(self.memory) > 1:
+            recent_messages = self.memory[-4:]  # Last 4 messages
+            for msg in recent_messages:
+                if isinstance(msg, HumanMessage):
+                    recent_history += f"User: {msg.content}\n"
+                elif isinstance(msg, AIMessage):
+                    recent_history += f"Assistant: {msg.content}\n"
+        
+        prompt = f"""You are an AI Career Coach chatting with a user. Be friendly, professional, and helpful.
+
+{f'Recent conversation:{recent_history}' if recent_history else ''}
+
+User: {message}
+
+Respond naturally and helpfully. If appropriate, guide them toward career-related assistance you can provide (resume review, job matching, career advice).
+Respond in Markdown. Prefer bullet points when listing multiple items. Use **bold** for emphasis.
+
+Response:"""
+        
+        try:
+            response = model.chat(prompt)
+            self.add_message("ai", response)
             return response
         except Exception as e:
-            return f"Error during research: {e}"
-
-    def _perform_gap_analysis(self) -> str:
-        job_text = self.context.get("job_text", "")
-        web_research = self.context.get("web_research", "")
+            return "I'm here to help with your career! You can ask me about your resume, provide job descriptions for analysis, or ask career-related questions."
+    
+    def _perform_gap_analysis(self, job_text: str) -> str:
+        """Perform comprehensive gap analysis with optional web research"""
+        if not self.context["has_resume"]:
+            return "I need your resume to perform this analysis."
         
-        # Augmented Job Description
-        augmented_job_text = f"{job_text}\n\n=== WEB RESEARCH INSIGHTS ===\n{web_research}"
+        # Optional: Do web research for more context about the role
+        web_research = ""
+        try:
+            tavily = self._get_tavily()
+            if tavily:
+                # Extract key terms for search
+                lines = job_text.split('\n')[:5]
+                search_query = " ".join(lines)[:150]
+                
+                results = tavily.invoke(f"Job requirements skills: {search_query}")
+                web_research = "\n".join([f"- {r.get('content', '')}" for r in results])
+        except Exception as e:
+            print(f"Web research failed: {e}")
         
-        # RAG Retrieval
-        chunks, _ = retrieve_resume_chunks_from_text(
-            job_text=augmented_job_text,
-            persist_dir=PERSIST_DIR,
-            k=4,
-            job_source=self.context.get("job_source", "uploaded_job.pdf")
-        )
+        # Augment job description with web research if available
+        augmented_job = job_text
+        if web_research:
+            augmented_job = f"{job_text}\n\n=== Additional Industry Context ===\n{web_research}"
         
-        if not chunks:
-            return "I couldn't find any relevant sections in your resume. Did you upload it?"
-
-        resume_context = _build_resume_context(chunks)
-        
-        # LoRA Inference
-        model = self._get_model()
-        analysis = model.generate_grounded_json(
-            resume_context=resume_context,
-            job_description=augmented_job_text
-        )
-        
-        self.context["gap_analysis_result"] = analysis
-        
-        # Extract missing keywords from analysis
-        # The model returns "missing_keywords" (list of dicts) or "gap_analysis" (list of dicts)
-        missing = []
-        if isinstance(analysis, dict):
-            # Check missing_keywords
-            mk = analysis.get("missing_keywords", [])
-            for m in mk:
-                if isinstance(m, dict) and m.get("keyword"):
-                    missing.append(m.get("keyword"))
+        # Retrieve relevant resume chunks
+        try:
+            chunks, _ = retrieve_resume_chunks_from_text(
+                job_text=augmented_job,
+                persist_dir=PERSIST_DIR,
+                k=4,
+                job_source="chat_analysis"
+            )
             
-            # Check gap_analysis gaps
-            ga = analysis.get("gap_analysis", [])
-            for g in ga:
-                if isinstance(g, dict) and g.get("gap"):
-                     # Heuristic: extract the skill from the gap text if possible
-                     # For now just present the gap text
-                     pass
-
-        self.context["missing_skills"] = missing
-        
-        if not missing:
-            # If no obvious missing keywords, just show gaps
-            gaps_text = "\n".join([f"- {g.get('gap')}" for g in analysis.get('gap_analysis', [])])
-            response = (
-                "Good news! I didn't find any specific missing keywords. However, here are some gaps/weaknesses identified:\n"
-                f"{gaps_text}\n\n"
-                "Shall I proceed to generate the resume?"
+            if not chunks:
+                return "I couldn't find relevant information in your resume. Make sure it was uploaded correctly."
+            
+            resume_context = _build_resume_context(chunks)
+            
+            # Generate analysis using the model
+            model = self._get_model()
+            analysis = model.generate_grounded_json(
+                resume_context=resume_context,
+                job_description=augmented_job
             )
-            self.state = "GENERATION" # Skip verification
-        else:
-            response = (
-                "Based on the analysis, your resume is missing these key skills/topics:\n"
-                f"- {', '.join(missing)}\n\n"
-                "**Verification Required**: To prevent fraud, please tell me which of these you actually have experience with. "
-                "For example: 'I have used Kubernetes for 2 years.' or 'Skip Kubernetes, I don't know it.'"
-            )
-            self.state = "VERIFICATION"
-
-        self.add_message("ai", response)
-        return response
-
-    def _handle_verification(self, user_input: str) -> str:
-        # Simple logic: Check which missing skills are mentioned in user_input
-        # In a real agent, we'd use an LLM to classify "Yes/No" per skill.
+            
+            # Store for later reference
+            self.context["last_gap_analysis"] = analysis
+            
+            # Format response
+            response = self._format_analysis_response(analysis)
+            self.add_message("ai", response)
+            return response
+            
+        except Exception as e:
+            return f"Error during analysis: {str(e)}"
+    
+    def _format_analysis_response(self, analysis: Dict[str, Any]) -> str:
+        """Format the analysis result into a readable response"""
+        if not isinstance(analysis, dict):
+            return "I completed the analysis but had trouble formatting the results."
         
-        approved = []
-        missing = self.context.get("missing_skills", [])
+        response_parts = []
         
-        lower_input = user_input.lower()
+        # Strengths (from matching keywords or positive points)
+        strengths = []
+        if "matching_keywords" in analysis:
+            for item in analysis["matching_keywords"][:5]:
+                if isinstance(item, dict):
+                    strengths.append(item.get("keyword", ""))
         
-        # Very naive check
-        if "skip" in lower_input and "all" in lower_input:
-            pass # None approved
-        elif "yes" in lower_input and "all" in lower_input:
-            approved = missing
-        else:
-            for skill in missing:
-                if skill.lower() in lower_input:
-                    approved.append(skill)
+        if strengths:
+            response_parts.append("### Strengths")
+            response_parts.append("**Skills that match well:**")
+            for s in strengths:
+                if s:
+                    response_parts.append(f"- {s}")
+            response_parts.append("")  # spacer
         
-        self.context["verified_skills"] = approved
+        # Gaps/Weaknesses
+        gaps = []
+        if "gap_analysis" in analysis:
+            for item in analysis["gap_analysis"][:5]:
+                if isinstance(item, dict):
+                    gaps.append(item.get("gap", ""))
         
-        # Advance state
-        self.state = "GENERATION"
+        if gaps:
+            response_parts.append("### Weaknesses / Gaps")
+            response_parts.append("**Areas for improvement (based on the JD):**")
+            for g in gaps:
+                if g:
+                    response_parts.append(f"- {g}")
+            response_parts.append("")  # spacer
         
-        # Immediately generate
-        gen_msg = self._generate_resume()
+        # Missing keywords
+        missing = []
+        if "missing_keywords" in analysis:
+            for item in analysis["missing_keywords"][:5]:
+                if isinstance(item, dict):
+                    missing.append(item.get("keyword", ""))
         
-        response = (
-            f"Understood. I will add the following skills: {', '.join(approved) if approved else 'None'}.\n\n"
-            f"{gen_msg}"
-        )
-        self.add_message("ai", response)
-        return response
+        if missing:
+            response_parts.append("### Missing keywords (only add if true)")
+            for m in missing:
+                if m:
+                    response_parts.append(f"- {m}")
+            response_parts.append("")  # spacer
+        
+        if not response_parts:
+            return "I've analyzed your resume against the job description. Overall, you seem to have a good match!"
+        
+        return "\n".join(response_parts)
 
 agent_instance = CareerAgent()
 

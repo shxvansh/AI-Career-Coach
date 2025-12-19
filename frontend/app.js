@@ -51,10 +51,90 @@ function showToast(message, type = 'normal') {
     }, 5000);
 }
 
+function escapeHtml(unsafe) {
+    return (unsafe || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Minimal, safe Markdown renderer (headings, bold, inline code, bullet lists, paragraphs)
+function renderMarkdown(mdText) {
+    const escaped = escapeHtml(mdText);
+
+    // Inline transforms (operate on escaped text)
+    const withInline = escaped
+        // inline code
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        // bold
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+    const lines = withInline.split('\n');
+    const out = [];
+    let inList = false;
+
+    function closeList() {
+        if (inList) {
+            out.push('</ul>');
+            inList = false;
+        }
+    }
+
+    for (const rawLine of lines) {
+        const line = rawLine.trimEnd();
+
+        // Blank line => paragraph break / list break
+        if (!line.trim()) {
+            closeList();
+            continue;
+        }
+
+        // Headings
+        if (line.startsWith('### ')) {
+            closeList();
+            out.push(`<h3>${line.slice(4).trim()}</h3>`);
+            continue;
+        }
+        if (line.startsWith('## ')) {
+            closeList();
+            out.push(`<h2>${line.slice(3).trim()}</h2>`);
+            continue;
+        }
+        if (line.startsWith('# ')) {
+            closeList();
+            out.push(`<h1>${line.slice(2).trim()}</h1>`);
+            continue;
+        }
+
+        // Bullet list
+        if (line.startsWith('- ') || line.startsWith('* ')) {
+            if (!inList) {
+                out.push('<ul>');
+                inList = true;
+            }
+            out.push(`<li>${line.slice(2).trim()}</li>`);
+            continue;
+        }
+
+        // Default paragraph
+        closeList();
+        out.push(`<p>${line.trim()}</p>`);
+    }
+
+    closeList();
+    return out.join('');
+}
+
 function addMessage(role, text) {
     const el = document.createElement('div');
     el.className = `message ${role}`;
-    el.textContent = text;
+    if (role === 'ai') {
+        el.innerHTML = renderMarkdown(text);
+    } else {
+        el.textContent = text;
+    }
     chatMessages.appendChild(el);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
@@ -71,6 +151,12 @@ async function sendMessage() {
     chatInput.disabled = true;
     sendBtn.disabled = true;
 
+    // Show loading indicator
+    const loadingMsg = document.createElement('div');
+    loadingMsg.className = 'message ai loading';
+    loadingMsg.textContent = '...';
+    chatMessages.appendChild(loadingMsg);
+
     try {
         const res = await fetch(`${API_URL}/chat`, {
             method: 'POST',
@@ -80,14 +166,19 @@ async function sendMessage() {
         
         const data = await res.json();
         
+        // Remove loading
+        chatMessages.removeChild(loadingMsg);
+        
         if (data.response) {
              addMessage('ai', data.response);
         } else {
-             // Fallback if response structure is different
              addMessage('ai', JSON.stringify(data));
         }
         
     } catch (err) {
+        if (document.body.contains(loadingMsg)) {
+            chatMessages.removeChild(loadingMsg);
+        }
         addMessage('ai', `Error: ${err.message}`);
         showToast(`Error: ${err.message}`, 'error');
     } finally {
@@ -104,9 +195,7 @@ chatInput.addEventListener('keypress', (e) => {
 
 resetChatBtn.addEventListener('click', async () => {
     await fetch(`${API_URL}/reset_chat`, { method: 'POST' });
-    chatMessages.innerHTML = '<div class="message ai">Chat reset. Hello! I am your AI Career Coach. Upload your resume and a job description to get started.</div>';
-    uploadedFiles = [];
-    renderAttachments();
+    chatMessages.innerHTML = '<div class="message ai">Chat reset. Hello! I\'m your AI Career Coach. How can I help you today?</div>';
     showToast('Chat history reset', 'normal');
 });
 
@@ -166,11 +255,9 @@ fileInput.addEventListener('change', async (e) => {
                 // We could display it, or just let the chat know.
                 if (endpoint === '/tune') {
                     addMessage('ai', "I've analyzed the job description. I'm ready to discuss gaps in your resume.");
+                } else {
+                    addMessage('ai', "I've received your resume. How can I help you? You can ask me about your resume, paste a job description, or ask general career questions.");
                 }
-                
-                // Enable chat
-                chatInput.disabled = false;
-                sendBtn.disabled = false;
                 
             } else {
                 showToast(`Error uploading ${file.name}: ${data.message}`, 'error');
