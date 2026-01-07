@@ -1,0 +1,52 @@
+Senior Frontend Developer - React & TypeScript
+
+About the Company:
+WebFlow is a modern web development agency specializing in user-centric digital experiences and responsive web applications.
+
+Job Description:
+We are seeking a Senior Frontend Developer to create exceptional user experiences and build scalable frontend architectures. You'll work on cutting-edge web applications using modern JavaScript frameworks and tools.
+
+Key Responsibilities:
+• Develop responsive web applications using React and TypeScript
+• Build reusable component libraries and design systems
+• Optimize application performance and user experience
+• Collaborate with UX/UI designers to implement pixel-perfect designs
+• Integrate with RESTful APIs and GraphQL endpoints
+• Implement automated testing and CI/CD pipelines
+• Mentor junior developers and contribute to code quality standards
+• Participate in architectural decisions and technology evaluations
+
+Technical Requirements:
+• 5+ years of experience in frontend development
+• Expert proficiency in React, TypeScript, and modern JavaScript (ES6+)
+• Strong experience with HTML5, CSS3, and responsive design
+• Experience with state management (Redux, Zustand, or similar)
+• Knowledge of testing frameworks (Jest, React Testing Library, Cypress)
+• Familiarity with build tools (Webpack, Vite, Babel)
+• Experience with version control (Git) and collaborative development
+• Understanding of web performance optimization and accessibility
+
+Required Skills:
+• Component-based architecture and design patterns
+• Cross-browser compatibility and responsive design
+• API integration and data fetching patterns
+• Performance optimization and debugging
+• Code review and quality assurance
+• Agile development methodologies
+
+Nice to Have:
+• Experience with Next.js or similar React frameworks
+• Background in backend development (Node.js, Python)
+• Knowledge of mobile development (React Native)
+• Contributions to open-source frontend projects
+• Experience with design tools (Figma, Sketch)
+
+Benefits:
+• Competitive salary and equity
+• Comprehensive health insurance
+• Remote work flexibility
+• Professional development budget
+• Modern tech stack and tools
+• Collaborative and inclusive culture
+
+Location: Remote (US-based)

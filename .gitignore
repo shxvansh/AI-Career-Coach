@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Virtual Environments
+venv/
+env/
+.venv/
+
+# Environment Variables
+.env
+
+# OS specific
+.DS_Store
+
+# local vector DBs / artifacts
+chroma_db/
+tuner_db/
+**/*.sqlite3
+**/*.bin
+
+# finetuning outputs (checkpoints/adapters)
+finetuning/results/
+finetuning/resume-expert-lora/
+**/*.safetensors
+**/*.pt
+**/*.pth
+
+# generated outputs
+tuner_output.json
+

@@ -1,0 +1,49 @@
+Senior Data Scientist - Analytics & ML
+
+About the Company:
+DataTech Solutions is a leading analytics company specializing in customer behavior analysis and predictive modeling for Fortune 500 companies.
+
+Job Description:
+We're looking for a Senior Data Scientist to lead advanced analytics projects and develop sophisticated machine learning models. You'll work on high-impact projects that drive business decisions and create data-driven solutions.
+
+Key Responsibilities:
+• Lead development of predictive models for customer behavior and churn analysis
+• Design and implement A/B testing frameworks and statistical analysis
+• Build recommendation systems using collaborative filtering and deep learning
+• Create automated data pipelines and ETL processes using Apache Airflow
+• Develop interactive dashboards and data visualizations for executive reporting
+• Conduct statistical analysis and hypothesis testing for business decisions
+• Collaborate with engineering teams to deploy models into production
+
+Technical Requirements:
+• PhD or Master's degree in Statistics, Mathematics, Computer Science, or related field
+• 5+ years of experience in data science and statistical modeling
+• Expert knowledge of Python, R, and statistical programming
+• Strong background in machine learning algorithms and techniques
+• Experience with SQL and big data technologies (Spark, Hadoop)
+• Proficiency in data visualization tools (Tableau, Power BI, matplotlib, seaborn)
+• Experience with experiment design and A/B testing methodologies
+• Knowledge of cloud data platforms (BigQuery, Redshift, Snowflake)
+
+Required Skills:
+• Advanced statistical analysis and modeling
+• Machine learning model development and validation
+• Data pipeline engineering and automation
+• Business intelligence and dashboard creation
+• Experimental design and causal inference
+• Stakeholder communication and presentation skills
+
+Nice to Have:
+• Experience with deep learning frameworks
+• Background in economics or behavioral science
+• Publications in data science or statistics
+• Experience with real-time analytics
+
+Benefits:
+• Competitive compensation package
+• Comprehensive health benefits
+• Professional development opportunities
+• Flexible working hours
+• Collaborative team environment
+
+Location: Palo Alto, CA (On-site preferred)

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Career Coach</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo"><span>✨</span> AI Career Coach</div>
+            <!-- <button id="reset-chat-btn" class="secondary-btn small">Reset</button> -->
+        </header>
+
+        <main>
+            <div id="chat-section" class="chat-container">
+                <div id="chat-messages" class="chat-messages">
+                    <div class="message ai">
+                        <div class="avatar ai">✨</div>
+                        <div class="message-content">
+                            <p>Hello! I'm your AI Career Coach. I can help you optimize your resume, analyze job descriptions, or answer career questions.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="attachment-preview" id="attachment-preview"></div>
+                
+                <div class="chat-input-area">
+                    <!-- New Upload Trigger & Menu -->
+                    <div class="upload-container">
+                        <button id="upload-trigger" class="upload-btn" title="Add files">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <div id="upload-menu" class="upload-menu hidden">
+                            <label for="file-upload-input" class="upload-option">
+                                <span class="icon">📄</span>
+                                <span class="text">Upload Resume</span>
+                                <input type="file" id="file-upload-input" class="hidden" accept="application/pdf">
+                            </label>
+                        </div>
+                    </div>
+
+                    <input type="text" id="chat-input" placeholder="Ask anything about your career...">
+                    <button id="send-btn" title="Send message">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading Overlay (hidden) -->
+            <div id="loading-overlay" class="hidden">
+                <div class="spinner"></div>
+            </div>
+
+            <!-- Legacy results section (hidden) -->
+            <div id="results-section" class="hidden"></div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

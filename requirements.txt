@@ -1,0 +1,38 @@
+# Core AI & Orchestration
+langchain==0.3.0
+langchain-openai==0.2.0
+langchain-community==0.3.0
+langchain-huggingface
+langchain-chroma
+langchain-text-splitters
+
+# Vector Database
+chromadb==0.4.22
+
+# Models & Training
+torch
+transformers
+peft
+datasets
+trl
+accelerate
+sentence-transformers
+
+# Utilities
+beautifulsoup4
+python-dotenv
+tavily-python
+jupyter
+pypdf
+PyMuPDF  # Better PDF text extraction
+loguru    # Structured logging
+
+# Web & API
+fastapi
+uvicorn
+streamlit
+requests
+python-multipart
+jinja2
+pdfkit
+
